@@ -18,10 +18,10 @@ from app.routers import health, tools
 from app.schemas.errors import ErrorResponse, ErrorCode
 
 
-# Configure logging
+# Configure logging (without request_id in format - it's added per-request)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - [%(request_id)s] %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -87,21 +87,10 @@ async def add_request_id(request: Request, call_next):
     """Add unique request_id to each request for observability."""
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4())[:8])
     request.state.request_id = request_id
-    
-    # Add to logging context
-    old_factory = logging.getLogRecordFactory()
-    
-    def record_factory(*args, **kwargs):
-        record = old_factory(*args, **kwargs)
-        record.request_id = request_id
-        return record
-    
-    logging.setLogRecordFactory(record_factory)
-    
+
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
-    
-    logging.setLogRecordFactory(old_factory)
+
     return response
 
 
